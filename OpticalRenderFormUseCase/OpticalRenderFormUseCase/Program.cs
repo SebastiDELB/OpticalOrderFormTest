@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -68,7 +69,6 @@ namespace OpticalRenderFormUseCase
             int numberTotalError = 0;
             string errorMessage = "Need to be filled in manually";
 
-
             var jsonText = File.ReadAllText(@"C:\Users\sebas\source\repos\OpticalRenderFormUseCase\OpticalRenderFormUseCase\bin\Debug\net6.0\tst1.json");
             var jsonobject = JObject.Parse(jsonText);
 
@@ -84,10 +84,10 @@ namespace OpticalRenderFormUseCase
             Console.WriteLine("processing time: " + processingTime + "s");
             Console.WriteLine("*********************//////////////////*******************");
 
-            foreach (KeyValuePair<string, string> pair in fields)
+            foreach(KeyValuePair<string, string> pair in fields)
             {
                 IEnumerable<JToken>? jsonValue = jsonobject["document"]?["inference"]?["prediction"]?[pair.Key]?["values"]?.ToList();
-                if (jsonValue != null)
+                if(jsonValue != null)
                 {
                     if(jsonValue.Count() == 0)
                     {
@@ -95,14 +95,17 @@ namespace OpticalRenderFormUseCase
                     }
                     foreach (var token in jsonValue)
                     {
-                        predictionCount++;
+
                         string? confidence = token["confidence"]?.ToString();
                         string? content = token["content"]?.ToString();
-                        if (confidence != null || confidence != "" || content != null || content != "")
+                        content = Regex.Replace(content, @"\p{L}*\:", "");
+                        if(confidence != null || confidence != "" || content != null || content != "")
                         {
-                            if (Single.TryParse(confidence, out float confidenceFloat) && confidenceFloat >= minimumConfidence)
+                            predictionCount++;
+                            if(Single.TryParse(confidence, out float confidenceFloat) && confidenceFloat >= minimumConfidence)
                             {
-                                if (pair.Value == "integer")
+
+                                if(pair.Value == "integer")
                                 {
                                     if(Int32.TryParse(content, out int res))
                                     {
@@ -114,7 +117,7 @@ namespace OpticalRenderFormUseCase
                                         fieldErrorCount++;
                                     }
                                 }
-                                if (pair.Value == "float")
+                                if(pair.Value == "float")
                                 {
                                     if (Single.TryParse(content, out float res))
                                     {
@@ -126,7 +129,7 @@ namespace OpticalRenderFormUseCase
                                         fieldErrorCount++;
                                     }
                                 }
-                                if (pair.Value == "string")
+                                if(pair.Value == "string")
                                 {
                                     if (content.All(Char.IsLetter))
                                     {
@@ -146,7 +149,7 @@ namespace OpticalRenderFormUseCase
                             }
                         }
                     }
-                    if(predictionCount - fieldErrorCount > 0)
+                    if (predictionCount - fieldErrorCount > 0)
                     {
                         numberOfPredictions.Add(predictionCount - fieldErrorCount);
                     }
@@ -165,19 +168,19 @@ namespace OpticalRenderFormUseCase
 
 
 
-            
+
             int indexRaw = 0;
             int index = 0;
-            foreach(KeyValuePair<string, string> pair in fields)
+            foreach (KeyValuePair<string, string> pair in fields)
             {
-                Console.WriteLine("feature's name: "+pair.Key);
-                if( numberOfPredictions[indexRaw] != 0)
+                Console.WriteLine("feature's name: " + pair.Key);
+                if (numberOfPredictions[indexRaw] != 0)
                 {
                     if (numberOfPredictions[indexRaw] > 1)
                     {
-                        for (int i = 0; i < numberOfPredictions[indexRaw]; i++)
+                        for(int i = 0; i < numberOfPredictions[indexRaw]; i++)
                         {
-                            if (listOfConfidences[index].ToString() != errorMessage)
+                            if(listOfConfidences[index].ToString() != errorMessage)
                             {
                                 Console.WriteLine("preidiction " + (i + 1).ToString() + ":");
                                 Console.Write("confience: " + listOfConfidences[index].ToString() + "  ");
@@ -206,8 +209,8 @@ namespace OpticalRenderFormUseCase
                 Console.WriteLine("********************************************");
                 indexRaw++;
             }
-            
-            
+
+
 
 
 
