@@ -8,183 +8,92 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using OpticalRenderFormLibrary;
+using System.Diagnostics;
 
 namespace OpticalRenderFormUseCase
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            Console.WriteLine(Connexion());
-        }
-        static string Connexion()
-        {
-            /*
-            var url = "https://api.mindee.net/v1/products/solution-eng-sandbox/optic_order_form/v1/predict";
-            var filePath = @"C:\Users\sebas\Documents\optic_order_form_test_set\ao1_20210102184641_fax_340319_20210102_184531_00128.pdf";
-            var token = "cc109780d48d6d427dd2a302392976a5";
-
-            var file = File.OpenRead(filePath);
-            var streamContent = new StreamContent(file);
-            var imageContent = new ByteArrayContent(streamContent.ReadAsByteArrayAsync().Result);
-            imageContent.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
-
-            var form = new MultipartFormDataContent();
-            form.Add(imageContent, "document", Path.GetFileName(filePath));
-
-            var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
-            var response = httpClient.PostAsync(url, form).Result;
-
-            JsonNode forecastNode = JsonNode.Parse(response.Content.ReadAsStringAsync().Result)!;
-
-            
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            Console.WriteLine(forecastNode!.ToJsonString(options));
-            var d = forecastNode!.ToJsonString(options);
-            var pe = forecastNode.AsObject();
-            var arf = pe.TryGetPropertyValue("a", out var value);
-            */
-
-
-            Dictionary<string, string> fields = new Dictionary<string, string>()
-            {
-                {"a", "integer" },
-                {"b", "integer" },
-                {"nose" , "integer" },
-                {"cylinder" , "float"},
-                {"client_account" , "integer" },
-                { "fullname", "string"},
-                { "index", "integer"},
-                {"sphere", "float" },
-                {"axe", "float" }
-            };
-            List<int> numberOfPredictions = new List<int>();
-            List<string> listOfConfidences = new List<string>();
-            List<string> listOfContents = new List<string>();
-            List<string> errors = new List<string>();
+            Stopwatch stopwatch = new Stopwatch();
+            List<List<string>> allProcessingResults = new List<List<string>>();
+            int totalErrorCount = 0;
+            int totalDocumentHaveError = 0;
             float minimumConfidence = (float)0.95;
-            int predictionCount = 0;
-            int fieldErrorCount = 0;
-            int numberTotalError = 0;
-            string errorMessage = "Need to be filled in manually";
+            //replace the directory path
+            string directoryPath = @"C:\Users\sebas\Documents\GitHub\OpticalOrderFormTest\OpticalRenderFormUseCase\OpticalRenderFormUseCase\optic_order_form_test_set";
+            string[] files = Directory.GetFiles(directoryPath);
 
-            var jsonText = File.ReadAllText(@"C:\Users\sebas\source\repos\OpticalRenderFormUseCase\OpticalRenderFormUseCase\bin\Debug\net6.0\tst1.json");
-            var jsonobject = JObject.Parse(jsonText);
+            //compute running time 
+            stopwatch.Start();
 
-            string? predictionStatus = jsonobject["api_request"]?["status"]?.ToString();
-            string? numberOfPages = jsonobject["document"]?["n_pages"]?.ToString();
-            string? documentName = jsonobject["document"]?["name"]?.ToString();
-            string? processingTime = jsonobject["document"]?["inference"]?["processing_time"]?.ToString();
+            //this is for just one document. replace directory path and the name of the document
+            await DisplayForDetails(directoryPath + @"\ao1_20210102184641_fax_340319_20210102_184531_00128.pdf", minimumConfidence);
+            
+            //call API library
+            ApiProcessing library = new ApiProcessing(minimumConfidence);
+            //for 0 or many documents in a directory
+            allProcessingResults = await library.EssentialInformationsRenderForm(directoryPath);
 
+            //stop compute running time 
+            stopwatch.Stop();
 
-            Console.WriteLine("prediction status: " + predictionStatus);
-            Console.WriteLine("number of pages: " + numberOfPages);
-            Console.WriteLine("document's name: " + documentName);
-            Console.WriteLine("processing time: " + processingTime + "s");
-            Console.WriteLine("*********************//////////////////*******************");
-
-            foreach(KeyValuePair<string, string> pair in fields)
+            //display result of processing API library
+            foreach (List<string> processingResult in allProcessingResults)
             {
-                IEnumerable<JToken>? jsonValue = jsonobject["document"]?["inference"]?["prediction"]?[pair.Key]?["values"]?.ToList();
-                if(jsonValue != null)
+                Int32.TryParse(processingResult.Last(), out var errorNumber);
+                totalErrorCount += errorNumber;
+                totalDocumentHaveError++;
+                foreach (string res in processingResult)
                 {
-                    if(jsonValue.Count() == 0)
-                    {
-                        fieldErrorCount++;
-                    }
-                    foreach (var token in jsonValue)
-                    {
-
-                        string? confidence = token["confidence"]?.ToString();
-                        string? content = token["content"]?.ToString();
-                        content = Regex.Replace(content, @"\p{L}*\:", "");
-                        if(confidence != null || confidence != "" || content != null || content != "")
-                        {
-                            predictionCount++;
-                            if(Single.TryParse(confidence, out float confidenceFloat) && confidenceFloat >= minimumConfidence)
-                            {
-
-                                if(pair.Value == "integer")
-                                {
-                                    if(Int32.TryParse(content, out int res))
-                                    {
-                                        listOfConfidences.Add(confidenceFloat.ToString());
-                                        listOfContents.Add(content);
-                                    }
-                                    else
-                                    {
-                                        fieldErrorCount++;
-                                    }
-                                }
-                                if(pair.Value == "float")
-                                {
-                                    if (Single.TryParse(content, out float res))
-                                    {
-                                        listOfConfidences.Add(confidenceFloat.ToString());
-                                        listOfContents.Add(content);
-                                    }
-                                    else
-                                    {
-                                        fieldErrorCount++;
-                                    }
-                                }
-                                if(pair.Value == "string")
-                                {
-                                    if (content.All(Char.IsLetter))
-                                    {
-                                        listOfConfidences.Add(confidenceFloat.ToString());
-                                        listOfContents.Add(content);
-                                    }
-                                    else
-                                    {
-                                        fieldErrorCount++;
-                                    }
-                                }
-
-                            }
-                            else
-                            {
-                                fieldErrorCount++;
-                            }
-                        }
-                    }
-                    if (predictionCount - fieldErrorCount > 0)
-                    {
-                        numberOfPredictions.Add(predictionCount - fieldErrorCount);
-                    }
-                    else
-                    {
-                        numberOfPredictions.Add(0);
-                        numberTotalError++;
-                    }
-                    fieldErrorCount = 0;
-                    predictionCount = 0;
+                    Console.WriteLine(res);
                 }
+                Console.WriteLine("+++++++++++++++++++++++++++++");
             }
+            Console.WriteLine("Total number of errors: " + totalErrorCount.ToString());
+            Console.WriteLine("Total number of documents: " + files.Length.ToString());
+            Console.WriteLine("Total number of documents wich has an error: " + totalDocumentHaveError);
+            Console.WriteLine("Average number of errors per document: " + (totalErrorCount/ files.Length).ToString());
+            Console.WriteLine("Running time: " + stopwatch.Elapsed.TotalSeconds.ToString() + "s");
+            Console.WriteLine();
+        }
 
+        /// <summary>
+        /// function for display details result
+        /// </summary>
+        /// <param name="filesPath"> file path </param>
+        /// <param name="minimumConfidence">minimum confidence</param>
+        /// <returns></returns>
+        public static async Task DisplayForDetails(string filesPath, float minimumConfidence)
+        {
+            List<List<string>> lists = new List<List<string>>();
 
+            ApiProcessing library = new ApiProcessing(minimumConfidence);
+            //for 0 or many documents in a directory
+            lists = await library.DetailsRenderForm(filesPath);
 
-
-
-
-
+            //can be change
+            string errorMessage = "Need to be filled in manually";
             int indexRaw = 0;
             int index = 0;
-            foreach (KeyValuePair<string, string> pair in fields)
+
+            //browse lists for display
+            foreach (KeyValuePair<string, string> pair in library._fields)
             {
-                Console.WriteLine("feature's name: " + pair.Key);
-                if (numberOfPredictions[indexRaw] != 0)
+                Console.WriteLine("Feature's name: " + pair.Key);
+                if (Int32.Parse(lists[2][indexRaw]) != 0) 
                 {
-                    if (numberOfPredictions[indexRaw] > 1)
+                    if (Int32.Parse(lists[2][indexRaw]) > 1)
                     {
-                        for(int i = 0; i < numberOfPredictions[indexRaw]; i++)
+                        for (int i = 0; i < Int32.Parse(lists[2][indexRaw]); i++)
                         {
-                            if(listOfConfidences[index].ToString() != errorMessage)
+                            if (lists[0][index].ToString() != errorMessage)
                             {
-                                Console.WriteLine("preidiction " + (i + 1).ToString() + ":");
-                                Console.Write("confience: " + listOfConfidences[index].ToString() + "  ");
-                                Console.Write("content: " + listOfContents[index]);
+                                Console.WriteLine("Prediction " + (i + 1).ToString() + ":");
+                                Console.Write("Confidence: " + lists[0][index].ToString() + "  ");
+                                Console.Write("Content: " + lists[1][index]);
                                 Console.WriteLine(" ");
 
                             }
@@ -193,10 +102,10 @@ namespace OpticalRenderFormUseCase
                     }
                     else
                     {
-                        if (listOfConfidences[index].ToString() != errorMessage)
+                        if (lists[0][index].ToString() != errorMessage)
                         {
-                            Console.WriteLine("confience: " + listOfConfidences[index]);
-                            Console.WriteLine("content: " + listOfContents[index]);
+                            Console.WriteLine("Confience: " + lists[0][index]);
+                            Console.WriteLine("Content: " + lists[1][index]);
                             Console.WriteLine(" ");
                         }
                         index++;
@@ -211,10 +120,6 @@ namespace OpticalRenderFormUseCase
             }
 
 
-
-
-
-            return "number of filed's error = " + numberTotalError.ToString();
         }
     }
 }
