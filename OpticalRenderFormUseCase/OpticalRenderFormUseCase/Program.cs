@@ -26,6 +26,8 @@ namespace OpticalRenderFormUseCase
             string directoryPath = @"C:\Users\sebas\Documents\GitHub\OpticalOrderFormTest\OpticalRenderFormUseCase\OpticalRenderFormUseCase\optic_order_form_test_set";
             string[] files = Directory.GetFiles(directoryPath);
 
+            Console.WriteLine("Document name: ao1_20210102184641_fax_340319_20210102_184531_00128.pdf");
+            Console.WriteLine();
             //compute running time 
             stopwatch.Start();
 
@@ -45,7 +47,10 @@ namespace OpticalRenderFormUseCase
             {
                 Int32.TryParse(processingResult.Last(), out var errorNumber);
                 totalErrorCount += errorNumber;
-                totalDocumentHaveError++;
+
+                if(errorNumber != 0)
+                    totalDocumentHaveError++;
+
                 foreach (string res in processingResult)
                 {
                     Console.WriteLine(res);
@@ -54,7 +59,7 @@ namespace OpticalRenderFormUseCase
             }
             Console.WriteLine("Total number of errors: " + totalErrorCount.ToString());
             Console.WriteLine("Total number of documents: " + files.Length.ToString());
-            Console.WriteLine("Total number of documents wich has an error: " + totalDocumentHaveError);
+            Console.WriteLine("Total number of documents wich have at least one missing value: " + totalDocumentHaveError);
             Console.WriteLine("Average number of errors per document: " + (totalErrorCount/ files.Length).ToString());
             Console.WriteLine("Running time: " + stopwatch.Elapsed.TotalSeconds.ToString() + "s");
             Console.WriteLine();
@@ -68,6 +73,7 @@ namespace OpticalRenderFormUseCase
         /// <returns></returns>
         public static async Task DisplayForDetails(string filesPath, float minimumConfidence)
         {
+
             List<List<string>> lists = new List<List<string>>();
 
             ApiProcessing library = new ApiProcessing(minimumConfidence);
@@ -104,7 +110,7 @@ namespace OpticalRenderFormUseCase
                     {
                         if (lists[0][index].ToString() != errorMessage)
                         {
-                            Console.WriteLine("Confience: " + lists[0][index]);
+                            Console.WriteLine("Confidence: " + lists[0][index]);
                             Console.WriteLine("Content: " + lists[1][index]);
                             Console.WriteLine(" ");
                         }
