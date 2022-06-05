@@ -18,7 +18,7 @@ namespace OpticalRenderFormUseCase
         static async Task Main(string[] args)
         {
             Stopwatch stopwatch = new Stopwatch();
-            List<List<string>> allProcessingResults = new List<List<string>>();
+            List<List<string>>? allProcessingResults = new List<List<string>>();
             int totalErrorCount = 0;
             int totalDocumentHaveError = 0;
             float minimumConfidence = (float)0.95;
@@ -74,7 +74,7 @@ namespace OpticalRenderFormUseCase
         public static async Task DisplayForDetails(string filesPath, float minimumConfidence)
         {
 
-            List<List<string>> lists = new List<List<string>>();
+            List<List<string>>? lists = new List<List<string>>();
 
             ApiProcessing library = new ApiProcessing(minimumConfidence);
             //for 0 or many documents in a directory

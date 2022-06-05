@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using iTextSharp.text.pdf;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -43,14 +44,23 @@ namespace OpticalRenderFormLibrary
 
         /// <summary>
         /// this function sends all documents in a directory to the API and calls calculation function.
-        /// if there are many documents to process, singleProcessing need to be false.
+        /// The file must be pdf/webp/png/jpeg/jpg file, max size 10MB and for max 5 pages for pdf files.
         /// </summary>
         /// <param name="DirectoryPath"> directory path</param>
-        /// <returns> a list of each document result </returns>
-        public async Task<List<List<string>>> EssentialInformationsRenderForm(string DirectoryPath)
+        /// <returns> List<List<string>> or null if files not passed tests </returns>
+        public async Task<List<List<string>>?> EssentialInformationsRenderForm(string DirectoryPath)
         {
+
             //get all directory's files
             string[] files = Directory.GetFiles(DirectoryPath);
+
+            //file tests
+            foreach(string file in files)
+            {
+                if(FileTest(file) == false)
+                    return null;
+            }
+
             for (int i = 0; i < files.Length; i++)
             {
                 //essential informations function call with response string with json format
@@ -61,12 +71,52 @@ namespace OpticalRenderFormLibrary
         }
 
         /// <summary>
-        /// function calls Processing Details.
+        /// checks for the files.
+        /// The file must be pdf/webp/png/jpeg/jpg file, max size 10MB and for max 5 pages for pdf files.
         /// </summary>
         /// <param name="filePath">file path</param>
-        /// <returns> List of lists of the api details (for one file)</returns>
-        public async Task<List<List<string>>> DetailsRenderForm(string filePath )
+        /// <returns>true or false</returns>
+        private bool FileTest(string filePath)
         {
+            // check nature of file
+            var res = filePath.Split('.');
+            if (res[res.Length - 1] != "pdf" || res[res.Length - 1] != "png" ||
+                res[res.Length - 1] != "jpg" || res[res.Length - 1] != "jpeg"
+                || res[res.Length - 1] != "webp")
+            {
+                return false;
+            }
+            // check file length
+            FileInfo fileInfo = new FileInfo(filePath);
+            if (fileInfo.Length > 10485760)
+            {
+                return false;
+            }
+            //check number of page for pdf file
+            if(res[res.Length - 1] != "pdf")
+            {
+                PdfReader pdfReader = new PdfReader(filePath);
+                if(pdfReader.NumberOfPages > 5)
+                {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Return details results from API recognition.
+        /// </summary>
+        /// <param name="filePath">file path</param>
+        /// <returns> List<List<string>> or null if the file not passed tests </returns>
+        public async Task<List<List<string>>?> DetailsRenderForm(string filePath )
+        {
+            //file tests
+            if (FileTest(filePath) == false)
+                return null;
+            
+
             return ProcessingDetails(await Connexion(filePath));
         }
 
@@ -109,12 +159,9 @@ namespace OpticalRenderFormLibrary
         /// list of content  for all predicted content.
         /// </summary>
         /// <param name="jsonText">API response string with indentation (json format)</param>
-        /// <returns>list of details of one document
-        /// // list {
-        ///     List{ number Of Predictions per fields }
-        ///     List{ list Of Confidences per predictions }
-        ///     List{ list Of Contents per predictions }
-        ///     }
+        /// <returns>List<List<string>> (List number Of Predictions per fields,
+        ///     List list Of Confidences per predictions,
+        ///     List list Of Contents per predictions)
         /// </returns>
         private List<List<string>> ProcessingDetails(string jsonText)
         {
