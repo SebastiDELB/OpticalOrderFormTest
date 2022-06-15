@@ -80,29 +80,29 @@ namespace OpticalRenderFormLibrary
         {
             // check nature of file
             var res = filePath.Split('.');
-            if (res[res.Length - 1] != "pdf" || res[res.Length - 1] != "png" ||
-                res[res.Length - 1] != "jpg" || res[res.Length - 1] != "jpeg"
-                || res[res.Length - 1] != "webp")
+            if (res[res.Length - 1] == "pdf" || res[res.Length - 1] == "png" ||
+                res[res.Length - 1] == "jpg" || res[res.Length - 1] == "jpeg"
+                || res[res.Length - 1] == "webp")
             {
-                return false;
-            }
-            // check file length
-            FileInfo fileInfo = new FileInfo(filePath);
-            if (fileInfo.Length > 10485760)
-            {
-                return false;
-            }
-            //check number of page for pdf file
-            if(res[res.Length - 1] != "pdf")
-            {
-                PdfReader pdfReader = new PdfReader(filePath);
-                if(pdfReader.NumberOfPages > 5)
+                // check file length
+                FileInfo fileInfo = new FileInfo(filePath);
+                if (fileInfo.Length > 10485760)
                 {
                     return false;
                 }
+                //check number of page for pdf file
+                if (res[res.Length - 1] != "pdf")
+                {
+                    PdfReader pdfReader = new PdfReader(filePath);
+                    if (pdfReader.NumberOfPages > 5)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
-            
-            return true;
+            return false;
         }
 
         /// <summary>
